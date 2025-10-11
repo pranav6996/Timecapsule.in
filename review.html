@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="auth.js" defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Time Capsules</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="review-page-body">
+
+  <div id="shader-container"></div>
+  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute; overflow:hidden;">
+    <defs><filter id="glass-distortion"><feTurbulence type="fractalNoise" baseFrequency="0.008 0.008" numOctaves="2" seed="92" result="noise"></feTurbulence><feGaussianBlur in="noise" stdDeviation="2" result="blurred"></feGaussianBlur><feDisplacementMap in="SourceGraphic" in2="blurred" scale="80" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap></filter></defs>
+  </svg>
+  <div id="liquid-glass-cursor"></div>
+
+  <div class="review-container container mt-5">
+    <h1 class="mb-4 text-center">Your Time Capsules</h1>
+    <div id="capsules-container" class="row">
+      <p id="loading-message">Loading your capsules...</p>
+    </div>
+  </div>
+
+  <div class="modal fade" id="capsuleModal" tabindex="-1" aria-labelledby="capsuleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="capsuleModalLabel">Capsule Details</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-photo-container" class="mb-3"></div>
+          <div id="modal-video-container" class="mb-3"></div>
+          <p id="modal-description"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // --- START: Animation Scripts ---
+    const glass = document.getElementById('liquid-glass-cursor');
+    const glassWidth = 120; const glassHeight = 120;
+    document.body.addEventListener('mouseenter', () => gsap.to(glass, { duration: 0.5, opacity: 1, ease: 'power2.out' }));
+    window.addEventListener("mousemove", (e) => {
+        const posX = e.clientX - glassWidth / 2;
+        const posY = e.clientY - glassHeight / 2;
+        gsap.to(glass, { duration: 0.6, left: posX, top: posY, ease: "power2.out" });
+    });
+    const container = document.getElementById('shader-container');
+    if (container) {
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const clock = new THREE.Clock();
+      const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
+      const fragmentShader = `precision highp float; uniform vec2 iResolution; uniform float iTime; uniform vec2 iMouse; void main() { vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y; vec2 mouse = (iMouse - 0.5 * iResolution.xy) / iResolution.y; float t = iTime * 0.2; float mouseDist = length(uv - mouse); float warp = sin(mouseDist * 20.0 - t * 4.0) * 0.1; warp *= smoothstep(0.4, 0.0, mouseDist); uv += warp; vec2 gridUv = abs(fract(uv * 10.0) - 0.5); float line = pow(1.0 - min(gridUv.x, gridUv.y), 50.0); vec3 gridColor = vec3(0.1, 0.5, 1.0); vec3 color = gridColor * line * (0.5 + sin(t * 2.0) * 0.2); float energy = sin(uv.x * 20.0 + t * 5.0) * sin(uv.y * 20.0 + t * 3.0); energy = smoothstep(0.8, 1.0, energy); color += vec3(1.0, 0.2, 0.8) * energy * line; float glow = smoothstep(0.1, 0.0, mouseDist); color += vec3(1.0) * glow * 0.5; gl_FragColor = vec4(color, 1.0); }`;
+      const uniforms = { iTime: { value: 0 }, iResolution: { value: new THREE.Vector2() }, iMouse: { value: new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2) } };
+      const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+      const onResize = () => { const width = window.innerWidth; const height = window.innerHeight; renderer.setSize(width, height); uniforms.iResolution.value.set(width, height); };
+      window.addEventListener('resize', onResize);
+      onResize();
+      window.addEventListener('mousemove', (e) => uniforms.iMouse.value.set(e.clientX, window.innerHeight - e.clientY));
+      renderer.setAnimationLoop(() => { uniforms.iTime.value = clock.getElapsedTime(); renderer.render(scene, camera); });
+    }
+    // --- END: Animation Scripts ---
+
+    // --- START: Data Fetching and Modal Logic ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      const capsulesContainer = document.getElementById('capsules-container');
+      const loadingMessage = document.getElementById('loading-message');
+
+      function calculateTimeRemaining(unlockDate) {
+        const now = new Date();
+        const difference = unlockDate - now;
+        if (difference <= 0) return "Ready to open!";
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        return `${days}d ${hours}h ${minutes}m remaining`;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          loadingMessage.textContent = 'You are not logged in. Redirecting...';
+          loadingMessage.className = 'alert alert-warning';
+          setTimeout(() => window.location.href = 'login.html', 2000);
+          return;
+        }
+
+        const response = await fetch('/capsules', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
+
+        const capsules = await response.json();
+        loadingMessage.remove();
+
+        if (!Array.isArray(capsules) || capsules.length === 0) {
+          capsulesContainer.innerHTML = '<p class="text-center text-muted">You have no capsules yet. Go create one!</p>';
+          return;
+        }
+
+        capsules.forEach(capsule => {
+          const unlockDate = new Date(capsule.unlock_date);
+          const isLocked = unlockDate > new Date();
+          const cardWrapper = document.createElement('div');
+          cardWrapper.className = 'col-md-6 col-lg-4 mb-4';
+          const safeName = capsule.capsule_name ? capsule.capsule_name.replace(/"/g, '&quot;') : 'Untitled Capsule';
+          const safeDescription = capsule.text ? capsule.text.replace(/"/g, '&quot;') : '';
+
+          if (isLocked) {
+            cardWrapper.innerHTML = `
+              <div class="card capsule-card text-white h-100">
+                <div class="card-background template-${capsule.template} locked-overlay d-flex align-items-center justify-content-center">
+                  <h5 class="card-title text-center">${safeName}</h5>
+                </div>
+                <div class="card-body text-center">
+                  <p class="card-text">
+                    <strong>LOCKED</strong><br>
+                    <span class="text-muted">${calculateTimeRemaining(unlockDate)}</span>
+                  </p>
+                </div>
+              </div>`;
+          } else {
+            cardWrapper.innerHTML = `
+              <div class="card capsule-card text-white h-100" 
+                   data-bs-toggle="modal" data-bs-target="#capsuleModal"
+                   data-name="${safeName}" data-description="${safeDescription}"
+                   data-photo="${capsule.photo_path || ''}" data-video="${capsule.video_path || ''}">
+                <div class="card-background template-${capsule.template} d-flex align-items-center justify-content-center">
+                  <h5 class="card-title text-center">${safeName}</h5>
+                </div>
+                <div class="card-body text-center">
+                  <p class="card-text text-success">
+                    <strong>UNLOCKED</strong><br>
+                    <span class="text-muted">Opened on: ${unlockDate.toLocaleDateString()}</span>
+                  </p>
+                </div>
+              </div>`;
+          }
+          capsulesContainer.appendChild(cardWrapper);
+        });
+
+        const capsuleModal = document.getElementById('capsuleModal');
+        capsuleModal.addEventListener('show.bs.modal', event => {
+          const card = event.relatedTarget;
+          const modalTitle = capsuleModal.querySelector('.modal-title');
+          const modalDescription = capsuleModal.querySelector('#modal-description');
+          const modalPhotoContainer = capsuleModal.querySelector('#modal-photo-container');
+          const modalVideoContainer = capsuleModal.querySelector('#modal-video-container');
+
+          modalTitle.textContent = card.dataset.name;
+          modalDescription.textContent = card.dataset.description;
+          modalPhotoContainer.innerHTML = '';
+          modalVideoContainer.innerHTML = '';
+
+          if (card.dataset.photo) {
+            modalPhotoContainer.innerHTML = `<img src="${card.dataset.photo}" alt="Capsule Photo" class="img-fluid rounded">`;
+          }
+          if (card.dataset.video) {
+            modalVideoContainer.innerHTML = `<video controls class="w-100 rounded"><source src="${card.dataset.video}" type="video/mp4"></video>`;
+          }
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        loadingMessage.textContent = 'Could not load capsules. Please ensure the server is running and you are logged in.';
+        loadingMessage.className = 'alert alert-danger';
+      }
+    });
+    // --- END: Data Fetching and Modal Logic ---
+  </script>
+</body>
+</html>

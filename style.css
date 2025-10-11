@@ -1,0 +1,137 @@
+/* General Body Styles */
+body {
+  color: #f0f0f0;
+  font-family: 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  background-color: #000;
+}
+
+/* --- Body Layout Classes --- */
+.homepage-body {
+  display: flex;
+  flex-direction: column;
+  cursor: none;
+  overflow: hidden;
+}
+.form-page-body, .review-page-body {
+    overflow-y: auto;
+    cursor: none;
+}
+
+/* --- Visual Effects (Cybergrid & Liquid Glass) --- */
+#shader-container {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: -1; pointer-events: none;
+}
+#liquid-glass-cursor {
+  position: absolute; z-index: 10000; width: 120px; height: 120px;
+  border-radius: 50%; opacity: 0; pointer-events: none;
+}
+#liquid-glass-cursor::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 20px -5px rgba(255, 255, 255, 0.7);
+}
+#liquid-glass-cursor::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  filter: url(#glass-distortion);
+}
+
+/* --- Homepage Content --- */
+.navbar {
+  padding: 1rem 2rem; background: rgba(10, 10, 10, 0.25);
+  backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; z-index: 10;
+}
+.navbar-brand img { width: 70px; border-radius: 12px; transition: transform 0.3s; }
+.navbar-brand img:hover { transform: scale(1.1) rotate(-10deg); }
+.content-wrapper {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  align-items: center; text-align: center; padding: 2rem; z-index: 10; position: relative;
+}
+.content-wrapper h1 { font-size: 4rem; margin-bottom: 20px; text-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+.content-wrapper p { font-size: 1.25rem; max-width: 600px; margin: 0 auto 2rem auto; line-height: 1.6; }
+.button-group { display: flex; gap: 1rem; }
+
+/* --- Form & Review Page Content --- */
+.form-container, .review-container {
+  margin: 50px auto; max-width: 600px; width: 90%;
+  background-color: rgba(30, 30, 30, 0.85); backdrop-filter: blur(8px);
+  padding: 30px; border-radius: 10px; border: 1px solid #333;
+  z-index: 10; position: relative;
+}
+.form-control, .form-select {
+    background-color: #2e2e2e; color: #e0e0e0; border-color: #444;
+}
+.capsule-card {
+  background-color: #1e1e1e; border: 1px solid #333; margin-bottom: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer;
+}
+.capsule-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 191, 255, 0.4); }
+.modal-content { background-color: #1e1e1e; color: #e0e0e0; }
+.modal-header { border-bottom-color: #333; }
+.modal-body video, .modal-body img { max-width: 100%; border-radius: 5px; }
+/* --- STYLES FOR CAPSULE TEMPLATES --- */
+
+/* --- STYLES FOR CAPSULE TEMPLATES --- */
+
+.card-background {
+  min-height: 150px;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  font-weight: bold;
+}
+
+.locked-overlay {
+    background-color: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+}
+
+/* You can replace these placeholder URLs with your own images */
+
+.template-casual {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/777777/FFFFFF?text=Casual');
+}
+
+.template-friends {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/F4A261/000000?text=Friends');
+}
+
+.template-romantic {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/E76F51/FFFFFF?text=Romantic');
+}
+
+.template-social {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/2A9D8F/FFFFFF?text=Social');
+}
+
+.template-adventure {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/264653/FFFFFF?text=Adventure');
+}
+
+.template-family {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/9B2226/FFFFFF?text=Family');
+}
+
+.template-achievement {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/FFD700/000000?text=Achievement');
+}
+
+.template-reflective {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/023047/FFFFFF?text=Reflective');
+}
+
+.template-future {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/5F0F40/FFFFFF?text=Future');
+}
+
+.template-celebration {
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://placehold.co/600x400/E9C46A/000000?text=Celebration');
+}
