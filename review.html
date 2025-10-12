@@ -27,12 +27,12 @@
     </div>
   </div>
 
-  <div class="modal fade" id="capsuleModal" tabindex="-1" aria-labelledby="capsuleModalLabel" aria-hidden="true">
+  <div class="modal fade" id="capsuleModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="capsuleModalLabel">Capsule Details</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div id="modal-photo-container" class="mb-3"></div>
@@ -46,7 +46,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // --- START: Animation Scripts ---
+    // Animation Script
     const glass = document.getElementById('liquid-glass-cursor');
     const glassWidth = 120; const glassHeight = 120;
     document.body.addEventListener('mouseenter', () => gsap.to(glass, { duration: 0.5, opacity: 1, ease: 'power2.out' }));
@@ -76,9 +76,8 @@
       window.addEventListener('mousemove', (e) => uniforms.iMouse.value.set(e.clientX, window.innerHeight - e.clientY));
       renderer.setAnimationLoop(() => { uniforms.iTime.value = clock.getElapsedTime(); renderer.render(scene, camera); });
     }
-    // --- END: Animation Scripts ---
 
-    // --- START: Data Fetching and Modal Logic ---
+    // Data Fetching and Modal Logic
     window.addEventListener('DOMContentLoaded', async () => {
       const capsulesContainer = document.getElementById('capsules-container');
       const loadingMessage = document.getElementById('loading-message');
@@ -96,9 +95,8 @@
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          loadingMessage.textContent = 'You are not logged in. Redirecting...';
+          loadingMessage.textContent = 'You are not logged in. Please log in first.';
           loadingMessage.className = 'alert alert-warning';
-          setTimeout(() => window.location.href = 'login.html', 2000);
           return;
         }
 
@@ -177,13 +175,13 @@
             modalVideoContainer.innerHTML = `<video controls class="w-100 rounded"><source src="${card.dataset.video}" type="video/mp4"></video>`;
           }
         });
+
       } catch (error) {
         console.error('Error:', error);
         loadingMessage.textContent = 'Could not load capsules. Please ensure the server is running and you are logged in.';
         loadingMessage.className = 'alert alert-danger';
       }
     });
-    // --- END: Data Fetching and Modal Logic ---
   </script>
 </body>
 </html>
