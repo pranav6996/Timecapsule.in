@@ -1,197 +1,107 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <script src="auth.js"></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Add TimeCapsule</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="form-page-body">
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import pool from "./db.js";
+import multer from 'multer';
+import path from 'path';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-  <div id="shader-container"></div>
-  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute; overflow:hidden;">
-    <defs>
-      <filter id="glass-distortion">
-        <feTurbulence type="fractalNoise" baseFrequency="0.008 0.008" numOctaves="2" seed="92" result="noise"></feTurbulence>
-        <feGaussianBlur in="noise" stdDeviation="2" result="blurred"></feGaussianBlur>
-        <feDisplacementMap in="SourceGraphic" in2="blurred" scale="80" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>
-      </filter>
-    </defs>
-  </svg>
-  <div id="liquid-glass-cursor"></div>
+dotenv.config();
+const app = express();
 
-  <div class="form-container">
-    <h1 class="mb-4 text-center">Add New Capsule</h1>
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('.'));
+app.use('/uploads', express.static('uploads'));
 
-    <form id="capsuleForm" enctype="multipart/form-data">
-      <div class="mb-3">
-        <label for="capsuleName" class="form-label">Capsule Name</label>
-        <input type="text" class="form-control" id="capsuleName" placeholder="e.g., 2025 Summer Memories" required>
-      </div>
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
-      <div class="mb-3">
-        <label for="memoryText" class="form-label">Memory Text / Description</label>
-        <textarea class="form-control" id="memoryText" rows="4" placeholder="Write your memory..." required></textarea>
-      </div>
+const PORT = process.env.PORT || 5080;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-default-secret-key-change-it';
 
-      <div class="mb-3">
-        <label for="photo" class="form-label">Upload Cover Photo</label>
-        <input class="form-control" type="file" id="photo" accept="image/*">
-      </div>
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token == null) return res.sendStatus(401);
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+};
 
-      <div class="mb-3">
-        <label for="video" class="form-label">Upload Video</label>
-        <input class="form-control" type="file" id="video" accept="video/*">
-      </div>
+app.post('/signup', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const existingUser = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (existingUser.rows.length > 0) return res.status(400).json({ error: "User with this email already exists." });
+    
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    await pool.query("INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3)", [name, email, passwordHash]);
+    res.status(201).json({ message: "User created successfully." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error during signup." });
+  }
+});
 
-      <div class="mb-3">
-        <label for="unlockDate" class="form-label">Set Unlock Date</label>
-        <input type="date" class="form-control" id="unlockDate" required>
-      </div>
+app.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userResult.rows.length === 0) return res.status(400).json({ error: "Invalid credentials." });
+    
+    const user = userResult.rows[0];
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials." });
+    
+    const token = jwt.sign({ id: user.id, name: user.name }, JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error during login." });
+  }
+});
 
-      <div class="mb-3">
-        <label for="template" class="form-label">Choose Template</label>
-        <select class="form-select" id="template" required>
-          <option value="" disabled selected>Select a template...</option>
-          <option value="casual">Casual</option>
-          <option value="friends">Friends</option>
-          <option value="romantic">Romantic</option>
-          <option value="social">Social</option>
-          <option value="adventure">Adventure</option>
-          <option value="family">Family</option>
-          <option value="achievement">Achievement</option>
-          <option value="reflective">Reflective</option>
-          <option value="future">Future</option>
-          <option value="celebration">Celebration</option>
-        </select>
-      </div>
+app.post("/capsule", authenticateToken, upload.fields([{ name: 'photos', maxCount: 1 }, { name: 'videos', maxCount: 1 }]), async (req, res) => {
+  try {
+    const { text, template, unlock_date, capsule_name } = req.body;
+    const userId = req.user.id;
+    const photoPath = req.files.photos ? req.files.photos[0].path : null;
+    const videoPath = req.files.videos ? req.files.videos[0].path : null;
+    
+    await pool.query(
+      "INSERT INTO capsules (user_id, text, template, unlock_date, created_at, capsule_name, photo_path, video_path) VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)",
+      [userId, text, template, unlock_date, capsule_name, photoPath, videoPath]
+    );
+    res.json({ message: "Capsule created successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error occurred." });
+  }
+});
 
-      <button type="submit" class="btn btn-primary w-100 btn-lg">Save Capsule</button>
-    </form>
-  </div>
+app.get("/capsules", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const allCapsules = await pool.query("SELECT * FROM capsules WHERE user_id = $1 ORDER BY created_at DESC", [userId]);
+    res.json(allCapsules.rows);
+  } catch (err) {
+    console.error("ERROR fetching capsules:", err);
+    res.status(500).json({ error: "Server error occurred." });
+  }
+});
 
-  <script>
-    // === ✨ Backend API Base ===
-    const API_BASE = "https://timecapsule-in.onrender.com"; // ✅ Change this if backend URL differs
-
-    // === 💾 Form Submission Script ===
-    document.getElementById('capsuleForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const formData = new FormData();
-      formData.append('capsule_name', document.getElementById('capsuleName').value);
-      formData.append('text', document.getElementById('memoryText').value);
-      formData.append('template', document.getElementById('template').value);
-      formData.append('unlock_date', document.getElementById('unlockDate').value);
-
-      const photo = document.getElementById('photo').files[0];
-      const video = document.getElementById('video').files[0];
-      if (photo) formData.append('photos', photo);
-      if (video) formData.append('videos', video);
-
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/capsule`, {
-          method: "POST",
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-          alert(data.message || "Capsule saved successfully!");
-          window.location.href = 'review.html';
-        } else {
-          alert("Error: " + (data.error || "Failed to save capsule."));
-        }
-      } catch (err) {
-        console.error("Error during upload:", err);
-        alert("Server error — please try again later.");
-      }
-    });
-  </script>
-
-  <script>
-    // === 🎨 Cursor & Background Shader Animation ===
-    const glass = document.getElementById('liquid-glass-cursor');
-    const glassWidth = 120;
-    const glassHeight = 120;
-
-    document.body.addEventListener('mouseenter', () => gsap.to(glass, { duration: 0.5, opacity: 1, ease: 'power2.out' }));
-    window.addEventListener("mousemove", (e) => {
-      const posX = e.clientX - glassWidth / 2;
-      const posY = e.clientY - glassHeight / 2;
-      gsap.to(glass, { duration: 0.6, left: posX, top: posY, ease: "power2.out" });
-    });
-
-    const container = document.getElementById('shader-container');
-    if (container) {
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(window.devicePixelRatio);
-      container.appendChild(renderer.domElement);
-
-      const scene = new THREE.Scene();
-      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-      const clock = new THREE.Clock();
-      const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
-      const fragmentShader = `
-        precision highp float;
-        uniform vec2 iResolution;
-        uniform float iTime;
-        uniform vec2 iMouse;
-        void main() {
-          vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
-          vec2 mouse = (iMouse - 0.5 * iResolution.xy) / iResolution.y;
-          float t = iTime * 0.2;
-          float mouseDist = length(uv - mouse);
-          float warp = sin(mouseDist * 20.0 - t * 4.0) * 0.1;
-          warp *= smoothstep(0.4, 0.0, mouseDist);
-          uv += warp;
-          vec2 gridUv = abs(fract(uv * 10.0) - 0.5);
-          float line = pow(1.0 - min(gridUv.x, gridUv.y), 50.0);
-          vec3 gridColor = vec3(0.1, 0.5, 1.0);
-          vec3 color = gridColor * line * (0.5 + sin(t * 2.0) * 0.2);
-          float energy = sin(uv.x * 20.0 + t * 5.0) * sin(uv.y * 20.0 + t * 3.0);
-          energy = smoothstep(0.8, 1.0, energy);
-          color += vec3(1.0, 0.2, 0.8) * energy * line;
-          float glow = smoothstep(0.1, 0.0, mouseDist);
-          color += vec3(1.0) * glow * 0.5;
-          gl_FragColor = vec4(color, 1.0);
-        }`;
-
-      const uniforms = {
-        iTime: { value: 0 },
-        iResolution: { value: new THREE.Vector2() },
-        iMouse: { value: new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2) }
-      };
-
-      const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
-      const geometry = new THREE.PlaneGeometry(2, 2);
-      const mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
-
-      const onResize = () => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        renderer.setSize(width, height);
-        uniforms.iResolution.value.set(width, height);
-      };
-
-      window.addEventListener('resize', onResize);
-      onResize();
-
-      window.addEventListener('mousemove', (e) => uniforms.iMouse.value.set(e.clientX, window.innerHeight - e.clientY));
-
-      renderer.setAnimationLoop(() => {
-        uniforms.iTime.value = clock.getElapsedTime();
-        renderer.render(scene, camera);
-      });
-    }
-  </script>
-
-</body>
-</html>
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
