@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <script src="auth.js"></script> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="auth.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TimeCapsule.AI</title>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -22,6 +23,7 @@
     <a class="navbar-brand" href="index.html">
       <img src="images/home_button.jpg" alt="Home Button" title="Home">
     </a>
+    <button id="logout-button" class="btn btn-outline-danger">Logout</button>
   </nav>
 
   <main class="content-wrapper">
@@ -70,6 +72,12 @@
       window.addEventListener('mousemove', (e) => uniforms.iMouse.value.set(e.clientX, window.innerHeight - e.clientY));
       renderer.setAnimationLoop(() => { uniforms.iTime.value = clock.getElapsedTime(); renderer.render(scene, camera); });
     }
+  </script>
+  <script>
+    document.getElementById('logout-button').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+    });
   </script>
 </body>
 </html>
