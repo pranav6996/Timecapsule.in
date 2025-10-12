@@ -43,26 +43,26 @@
       </div>
       <div class="mb-3">
         <label for="template" class="form-label">Choose Template</label>
-      <select class="form-select" id="template">
-        <option selected>Select a template...</option>
-        <option value="casual">Casual</option>
-        <option value="friends">Friends</option>
-        <option value="romantic">Romantic</option>
-        <option value="social">Social</option>
-        <option value="adventure">Adventure</option>
-        <option value="family">Family</option>
-        <option value="achievement">Achievement</option>
-        <option value="reflective">Reflective</option>
-        <option value="future">Future</option>
-        <option value="celebration">Celebration</option>
-      </select>
+        <select class="form-select" id="template">
+          <option selected>Select a template...</option>
+          <option value="casual">Casual</option>
+          <option value="friends">Friends</option>
+          <option value="romantic">Romantic</option>
+          <option value="social">Social</option>
+          <option value="adventure">Adventure</option>
+          <option value="family">Family</option>
+          <option value="achievement">Achievement</option>
+          <option value="reflective">Reflective</option>
+          <option value="future">Future</option>
+          <option value="celebration">Celebration</option>
+        </select>
       </div>
       <button type="submit" class="btn btn-primary w-100 btn-lg">Save Capsule</button>
     </form>
   </div>
   
   <script>
-    // Animation Script
+    // --- Animation Script ---
     const glass = document.getElementById('liquid-glass-cursor');
     const glassWidth = 120; const glassHeight = 120;
     document.body.addEventListener('mouseenter', () => gsap.to(glass, { duration: 0.5, opacity: 1, ease: 'power2.out' }));
@@ -94,7 +94,7 @@
     }
   </script>
   <script>
-    // Form Submission Script
+    // --- Form Submission Script ---
     document.getElementById('capsuleForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const formData = new FormData();
@@ -114,7 +114,12 @@
             body: formData
         });
         const data = await res.json();
-        if (res.ok) { alert(data.message); window.location.href = 'review.html'; } else { alert("Error: " + data.error); }
+        if (res.ok) { 
+            alert(data.message); 
+            window.location.href = 'review.html'; 
+        } else { 
+            alert("Error: " + data.error); 
+        }
       } catch (error) {
         console.error('Error during upload:', error);
         alert('A critical error occurred. Please check the developer console.');
